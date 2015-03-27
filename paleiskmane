@@ -1,0 +1,61 @@
+#!/bin/bash
+# Paleisk mane, paleisk mane,
+# Paleisk mane iš flęšo...
+
+# HELP!!1
+usage() {
+    # FIXME
+    echo "Šį skriptą reik leist iš flęšo."
+}
+
+# general cool stuff
+today=`date +%Y-%m-%d`
+now=`date +%H-%M-%S`
+
+# usable variables
+myname=`basename $0`
+logdir="./.$myname"
+[ ! -d $logdir ] && mkdir $logdir # create log dir if it's missing
+logfile="$logdir/$today-$now.log"
+prevlogfile="$logdir/`ls -t $logdir | head -1`"
+
+# FIXME: can only run from flash mountpoint ATM
+[ "x$0" != "x./$myname" ] && usage && exit 1
+
+# get checksums, write to log
+echo "Nauja būsena: $logfile"
+touch $logfile
+
+# FIXME: get filenames from `file`...
+echo "Ieškau failų..."
+filelist="./filelist"
+find ./ -iname "*" -type f >> $filelist
+
+# FIXME: ... and check them all
+echo "Skaičiuoju..."
+nmax=`wc -l $filelist | cut -d' ' -f1`
+for n in `seq $nmax`; do
+    # AWK IS SLOW, don't do this
+    #checksum=`awk "NR==$n{print;exit}" $filelist`
+
+    # write checksum
+    f=`head -n$n $filelist | tail -1`
+    checksum=`head -n$n $filelist | tail -1 | md5sum | cut -d' ' -f1`
+    echo $checksum $f >> $logfile
+
+    # TICK (72 = terminal width)
+    tick=`echo $checksum | cut -b2`
+    echo -n $tick
+    [ "`expr $n % 72`" == "0" ] && echo ""
+
+    ## DEBUG
+    #echo $n $f $checksum
+done
+echo ""
+rm $filelist
+
+# show diff, sorted by file name
+# TODO: sort by last field (no path)
+echo "Pasikeitimai:"
+diff <(sort --key=2 $prevlogfile) <(sort --key=2 $logfile)
+killall -9 sort
